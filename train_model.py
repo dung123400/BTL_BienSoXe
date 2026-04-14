@@ -3,6 +3,9 @@ import cv2
 import numpy as np
 from sklearn.svm import SVC
 import joblib
+import sys
+
+sys.stdout.reconfigure(encoding='utf-8')
 
 # 1. Cấu hình đường dẫn và kích thước ảnh
 DATASET_PATH = "dataset" # Tên thư mục chứa ảnh của bạn
@@ -11,6 +14,9 @@ IMG_SIZE = (20, 20)      # Kích thước chuẩn để AI học (rộng 20, cao
 # Khởi tạo 2 mảng để chứa dữ liệu
 X = [] # X: Chứa đặc trưng của ảnh (chính là ma trận pixel)
 y = [] # y: Chứa nhãn (tên của chữ cái/số đó)
+
+# Khởi tạo thuật toán HOG cực kỳ mạnh mẽ để bắt nét cong/chéo thay vì bắt điểm ảnh
+hog = cv2.HOGDescriptor((20, 20), (10, 10), (5, 5), (5, 5), 9)
 
 print(f"Đang đọc dữ liệu từ thư mục '{DATASET_PATH}'...")
 
@@ -35,14 +41,34 @@ for label in os.listdir(DATASET_PATH):
         if img is None:
             continue
 
-        # THÊM DÒNG NÀY VÀO: Ép ảnh dataset thành Chữ Trắng - Nền Đen tuyệt đối
+        # Ép ảnh dataset thành Chữ Trắng - Nền Đen tuyệt đối
         _, img = cv2.threshold(img, 100, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        
+        # 🌟 TƯƠNG TỰ NHƯ KHI NHẬN DIỆN: Ép ảnh học thành hình VUÔNG để không méo chữ
+        coords = cv2.findNonZero(img)
+        if coords is not None:
+            bx, by, bw, bh = cv2.boundingRect(coords)
+            img_roi = img[by:by+bh, bx:bx+bw]
+            
+            diff = abs(bh - bw)
+            if bh > bw:
+                top, bottom = 0, 0
+                left, right = diff // 2, diff - diff // 2
+            else:
+                top, bottom = diff // 2, diff - diff // 2
+                left, right = 0, 0
+                
+            img_squared = cv2.copyMakeBorder(img_roi, top, bottom, left, right, cv2.BORDER_CONSTANT, value=0)
+            
+            border = 4
+            img_padded = cv2.copyMakeBorder(img_squared, border, border, border, border, cv2.BORDER_CONSTANT, value=0)
+            img = img_padded
             
         # Resize ảnh về đúng kích thước 20x20
         img = cv2.resize(img, IMG_SIZE)
         
-        # Trích xuất đặc trưng: Duỗi bức ảnh 20x20 thành 1 mảng 1 chiều có 400 phần tử
-        features = img.flatten() 
+        # SỬ DỤNG SỨC MẠNH HOG (Bắt dáng nét các góc độ của chữ cái/số)
+        features = hog.compute(img).flatten() 
         
         # Đưa dữ liệu vào danh sách
         X.append(features)
