@@ -1,4 +1,4 @@
-import cv2
+﻿import cv2
 import numpy as np
 import imutils
 from imutils import contours
@@ -274,4 +274,4 @@ def doc_bien_so(image_path):
 
 # --- CHẠY THỬ ---
 # Nhớ đổi tên file ảnh dưới đây thành ảnh của bạn nhé!
-doc_bien_so("images156.jpg")
+doc_bien_so("xemayBigPlate2_jpg.rf.dec9b1106cf2343a62276a2f0b1d842b.jpg")
