@@ -1,4 +1,4 @@
-﻿import cv2
+import cv2
 import numpy as np
 import imutils
 from imutils import contours
@@ -63,7 +63,7 @@ def doc_bien_so(image_path):
     thresh[:, 0:3] = 0
     thresh[:, -3:] = 0
 
-    # Khôi phục kiểu tìm LIST (Tránh trường hợp nền ảnh bị bao tối tạo thành 1 khung viền khổng lồ nuốt hết chữ do EXTERNAL)
+    # Dùng RETR_LIST để đảm bảo tìm được chữ ngay cả khi vùng bị nhiễu nền hoặc chưa cắt sát khung viền
     char_cnts, _ = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     
     valid_chars = []
@@ -75,10 +75,26 @@ def doc_bien_so(image_path):
         aspect_ratio = w / float(h)
         area = w * h
         
-        # Biển 2 dòng: chữ chỉ cao từ 15% - 55% của biển. Biển 1 dòng: chữ cao đến 90% biển.
+        # Biển 2 dòng / Không cắt trúng viền: chữ chỉ cao từ 8% - 55% của ảnh. Biển 1 dòng: chữ cao đến 90%.
         # Tỷ lệ bề ngang/dọc (aspect_ratio) phải < 0.85 (Chữ/số thường ốm, chỉ có méo/nhiễu/cục to mới tạo hình vuông > 0.85)
-        if (plate_height * 0.15 <= h <= plate_height * 0.90) and (area > 50) and (0.1 < aspect_ratio <= 0.85): 
+        if (plate_height * 0.08 <= h <= plate_height * 0.90) and (area > 50) and (0.1 < aspect_ratio <= 0.85): 
             valid_chars.append(c)
+
+    # Lọc bỏ các contour ảo nằm gọn bên trong một contour khác (ví dụ: 2 lỗ rỗng bên trong số 8)
+    final_valid_chars = []
+    for i, cA in enumerate(valid_chars):
+        xA, yA, wA, hA = cv2.boundingRect(cA)
+        is_contained = False
+        for j, cB in enumerate(valid_chars):
+            if i == j: continue
+            xB, yB, wB, hB = cv2.boundingRect(cB)
+            # Kiểm tra xem box A có nằm hoàn toàn trong box B không
+            if xB <= xA and yB <= yA and (xB + wB) >= (xA + wA) and (yB + hB) >= (yA + hA):
+                is_contained = True
+                break
+        if not is_contained:
+            final_valid_chars.append(cA)
+    valid_chars = final_valid_chars
 
     if not valid_chars:
         print("Không cắt được chữ nào chuẩn trên biển số!")
@@ -190,7 +206,7 @@ def doc_bien_so(image_path):
                 if prediction == 'B': prediction = '8'
                 elif prediction == 'G': prediction = '6'
                 elif prediction == 'Z': prediction = '2'
-                elif prediction == 'S': prediction = prediction == 'S': prediction = '9'
+                elif prediction == 'S': prediction = '9'
                 elif prediction == 'A': prediction = '4'
                 elif prediction in ['D', 'O']: prediction = '0'
                 elif prediction in ['T', 'I']: prediction = '1'
@@ -236,7 +252,7 @@ def doc_bien_so(image_path):
                 if prediction == 'B': prediction = '8'
                 elif prediction == 'G': prediction = '6'
                 elif prediction == 'Z': prediction = '2'
-                elif prediction == 'S': prediction = prediction == 'S': prediction = '9'
+                elif prediction == 'S': prediction = '9'
                 elif prediction == 'A': prediction = '4'
                 elif prediction in ['D', 'O']: prediction = '0'
                 elif prediction in ['T', 'I']: prediction = '1'
@@ -258,4 +274,4 @@ def doc_bien_so(image_path):
 
 # --- CHẠY THỬ ---
 # Nhớ đổi tên file ảnh dưới đây thành ảnh của bạn nhé!
-doc_bien_so("bien-so-xe-02-326501j.PNG")
+doc_bien_so("images156.jpg")
